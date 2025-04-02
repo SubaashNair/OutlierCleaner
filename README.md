@@ -1,17 +1,21 @@
 # OutlierCleaner
 
-A Python package for detecting and removing outliers in data using various statistical methods.
+A Python package for detecting and removing outliers in data using various statistical methods and advanced distribution analysis.
 
 ## Features
 
-- Clean outliers using IQR (Interquartile Range) method
-- Clean outliers using Z-score method
-- Add Z-score columns for analysis
-- Clean multiple columns using pre-calculated Z-scores
-- Batch clean all Z-score columns at once
-- Advanced outlier analysis and statistics
+- Automatic method selection based on data distribution
+- Multiple outlier detection methods:
+  - IQR (Interquartile Range)
+  - Z-score
+  - Modified Z-score (robust to non-normal distributions)
+- Advanced distribution analysis and method recommendations
 - Comprehensive visualization tools
+- Progress tracking for batch operations
+- Index preservation options
+- Outlier tracking and statistics
 - Method comparison and agreement analysis
+- Robust handling of edge cases (zero MAD, constant columns)
 
 ## Installation
 
@@ -21,87 +25,96 @@ pip install outlier-cleaner
 
 ## Usage
 
+Here's a comprehensive example using the California Housing dataset:
+
 ```python
 import pandas as pd
+from sklearn.datasets import fetch_california_housing
 from outlier_cleaner import OutlierCleaner
 
-# Create sample data
-df = pd.DataFrame({
-    'height': [170, 175, 160, 180, 250, 165, 170],  # 250 is an outlier
-    'weight': [70, 75, 60, 80, 180, 65, 72]  # 180 is an outlier
-})
+# Load California Housing dataset
+housing = fetch_california_housing()
+df = pd.DataFrame(housing.data, columns=housing.feature_names)
+df['PRICE'] = housing.target
 
-# Initialize cleaner
-cleaner = OutlierCleaner(df)
+# Initialize cleaner with index preservation
+cleaner = OutlierCleaner(df, preserve_index=True)
 
-# Get comprehensive outlier statistics
-stats = cleaner.get_outlier_stats(['height', 'weight'])
-print(stats['height']['iqr']['potential_outliers'])  # Number of potential outliers
-print(stats['height']['zscore']['outlier_indices'])  # Indices of outliers
+# Analyze distributions and get method recommendations
+for column in ['MedInc', 'AveRooms', 'PRICE']:
+    analysis = cleaner.analyze_distribution(column)
+    print(f"\n{column} Analysis:")
+    print(f"- Skewness: {analysis['skewness']:.2f}")
+    print(f"- Recommended method: {analysis['recommended_method']}")
 
-# Visualize outlier analysis
-figures = cleaner.plot_outlier_analysis(['height', 'weight'])
-# figures['height'].show()  # Display the figure for height
+# Get outlier statistics
+stats = cleaner.get_outlier_stats(['MedInc', 'AveRooms', 'PRICE'])
+print(f"\nPotential outliers in MedInc: {stats['MedInc']['iqr']['potential_outliers']}")
 
-# Compare different outlier detection methods
-comparison = cleaner.compare_methods(['height', 'weight'])
-print(comparison['height']['summary'])  # Print comparison summary
+# Clean data with automatic method selection
+cleaned_df, info = cleaner.clean_columns(
+    columns=['MedInc', 'AveRooms', 'PRICE'],
+    method='auto',
+    show_progress=True
+)
 
-# Add Z-score columns
-cleaner.add_zscore_columns()
+# Get outlier indices
+outliers = cleaner.get_outlier_indices('MedInc')
+print(f"\nOutlier indices for MedInc: {outliers['MedInc'][:5]}")
 
-# Clean all columns with Z-scores at once
-cleaned_df, outlier_info = cleaner.clean_zscore_columns(threshold=3.0)
+# Visualize results
+figures = cleaner.plot_outlier_analysis(['MedInc', 'AveRooms', 'PRICE'])
+# figures['MedInc'].show()  # Display the figure for MedInc
 
-# Clean specific columns using IQR method
-cleaned_df, outlier_info = cleaner.remove_outliers_iqr('height', lower_factor=1.5, upper_factor=1.5)
+# Compare methods
+comparison = cleaner.compare_methods(['MedInc', 'PRICE'])
+print(comparison['MedInc']['summary'])
 ```
 
 ## Methods
 
-### get_outlier_stats(columns=None, methods=['iqr', 'zscore'])
-Get comprehensive statistics about potential outliers without removing them.
-- Returns detailed statistics for each column and method
-- Includes counts, percentages, and indices of outliers
+### analyze_distribution(column)
+Analyze the distribution of a column and recommend the best outlier detection method.
+- Calculates skewness, kurtosis, and normality tests
+- Recommends the most appropriate method and thresholds
+- Returns detailed distribution analysis
 
-### plot_outlier_analysis(columns=None, methods=['iqr', 'zscore'])
-Create comprehensive visualizations for outlier analysis.
-- Generates box plots, distributions, and Z-score plots
-- Shows outlier thresholds and boundaries
-- Returns dictionary of matplotlib figures
-
-### compare_methods(columns=None, methods=['iqr', 'zscore'])
-Compare different outlier detection methods and their agreement.
-- Calculates agreement percentage between methods
-- Identifies common outliers and method-specific outliers
-- Provides detailed comparison summary
-
-### add_zscore_columns(columns=None)
-Add Z-score columns to the DataFrame for specified columns.
-- Creates new columns with '_zscore' suffix
-- Useful for outlier detection and analysis
-
-### clean_zscore_columns(threshold=3.0)
-Clean all columns that have associated Z-score columns.
-- Removes outliers based on Z-score threshold
+### clean_columns(columns=None, method='auto', show_progress=True)
+Clean multiple columns using the most appropriate method for each column.
+- Automatic method selection based on distribution analysis
+- Progress bar for tracking cleaning operations
 - Returns cleaned DataFrame and outlier information
 
-### remove_outliers_iqr(column, lower_factor=1.5, upper_factor=1.5)
-Remove outliers using the IQR method.
-- Configurable factors for lower and upper bounds
+### remove_outliers_modified_zscore(column, threshold=3.5)
+Remove outliers using the Modified Z-score method (robust to non-normal distributions).
+- Uses Median Absolute Deviation (MAD) instead of standard deviation
+- Automatically handles zero MAD cases
 - Returns cleaned DataFrame and outlier information
 
-### remove_outliers_zscore(column, threshold=3.0)
-Remove outliers using the Z-score method.
-- Uses existing Z-score columns if available
-- Returns cleaned DataFrame and outlier information
+### get_outlier_indices(column=None)
+Get the indices of outliers for specified column(s).
+- Returns dictionary mapping columns to outlier indices
+- Handles missing columns gracefully
+- Useful for tracking removed data points
+
+### Additional Methods
+- `get_outlier_stats()`: Get comprehensive outlier statistics
+- `plot_outlier_analysis()`: Create detailed visualizations
+- `compare_methods()`: Compare different detection methods
+- `add_zscore_columns()`: Add Z-score columns for analysis
+- `clean_zscore_columns()`: Clean using Z-score thresholds
+- `remove_outliers_iqr()`: Clean using IQR method
+- `remove_outliers_zscore()`: Clean using Z-score method
 
 ## Requirements
 
-- numpy
-- pandas
-- matplotlib
-- seaborn
+- numpy>=1.20.0
+- pandas>=1.3.0
+- matplotlib>=3.4.0
+- seaborn>=0.11.0
+- scipy>=1.7.0
+- scikit-learn>=0.24.0 (for examples)
+- tqdm>=4.62.0
 
 ## Author
 
@@ -109,4 +122,8 @@ Subashan Annai
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. 
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+MIT License 

@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy import stats
+from tqdm import tqdm
 
 
 class OutlierCleaner:
@@ -20,7 +22,7 @@ class OutlierCleaner:
     cleaning process.
     """
     
-    def __init__(self, df=None):
+    def __init__(self, df=None, preserve_index=True):
         """
         Initialize the OutlierCleaner with an optional DataFrame.
         
@@ -28,12 +30,15 @@ class OutlierCleaner:
         -----------
         df : pandas.DataFrame, optional
             The DataFrame to clean
+        preserve_index : bool, default=True
+            Whether to preserve the original index after cleaning
         """
         self.original_df = df.copy() if df is not None else None
         self.clean_df = df.copy() if df is not None else None
         self.outlier_info = {}
+        self.preserve_index = preserve_index
         
-    def set_data(self, df):
+    def set_data(self, df, preserve_index=None):
         """
         Set or update the DataFrame to be cleaned.
         
@@ -41,10 +46,15 @@ class OutlierCleaner:
         -----------
         df : pandas.DataFrame
             The DataFrame to clean
+        preserve_index : bool, optional
+            Whether to preserve the original index after cleaning.
+            If None, uses the value set in __init__
         """
         self.original_df = df.copy()
         self.clean_df = df.copy()
         self.outlier_info = {}
+        if preserve_index is not None:
+            self.preserve_index = preserve_index
         
     def add_zscore_columns(self, columns=None):
         """
@@ -207,14 +217,16 @@ class OutlierCleaner:
             z_scores = np.abs(self.clean_df[zscore_col])
         else:
             # Calculate Z-scores
-            z_scores = np.abs((self.clean_df[column] - self.clean_df[column].mean()) / 
-                             self.clean_df[column].std())
+            mean = self.clean_df[column].mean()
+            std = self.clean_df[column].std()
+            z_scores = np.abs((self.clean_df[column] - mean) / std)
         
         # Identify outliers
-        outliers = self.clean_df[z_scores > threshold]
+        outlier_mask = z_scores > threshold
+        outliers = self.clean_df[outlier_mask]
         
         # Create a clean DataFrame without outliers
-        self.clean_df = self.clean_df[z_scores <= threshold]
+        self.clean_df = self.clean_df[~outlier_mask].copy()
         
         # Prepare outlier information
         outlier_info = {
@@ -250,26 +262,10 @@ class OutlierCleaner:
         Returns:
         --------
         dict
-            A dictionary containing outlier statistics for each column and method:
-            {
-                'column_name': {
-                    'iqr': {
-                        'potential_outliers': int,
-                        'percent_outliers': float,
-                        'bounds': (lower, upper),
-                        'outlier_indices': list
-                    },
-                    'zscore': {
-                        'potential_outliers': int,
-                        'percent_outliers': float,
-                        'threshold': float,
-                        'outlier_indices': list
-                    }
-                }
-            }
+            A dictionary containing outlier statistics for each column and method
         """
-        if self.clean_df is None:
-            raise ValueError("No DataFrame has been set. Use set_data() first.")
+        if self.clean_df is None or len(self.clean_df.columns) == 0:
+            raise ValueError("No DataFrame has been set or DataFrame is empty. Use set_data() first.")
             
         # If no columns specified, use all numeric columns
         if columns is None:
@@ -311,8 +307,9 @@ class OutlierCleaner:
                 if zscore_col in self.clean_df.columns:
                     z_scores = np.abs(self.clean_df[zscore_col])
                 else:
-                    z_scores = np.abs((self.clean_df[column] - self.clean_df[column].mean()) / 
-                                    self.clean_df[column].std())
+                    mean = self.clean_df[column].mean()
+                    std = self.clean_df[column].std()
+                    z_scores = np.abs((self.clean_df[column] - mean) / std)
                 
                 outlier_mask = z_scores > zscore_threshold
                 outlier_indices = self.clean_df[outlier_mask].index.tolist()
@@ -483,18 +480,148 @@ class OutlierCleaner:
         
         return comparison
         
-    def clean_columns(self, method='iqr', columns=None, **kwargs):
+    def analyze_distribution(self, column):
         """
-        Clean multiple columns in a DataFrame by removing outliers.
+        Analyze the distribution of a column and recommend the best outlier detection method.
         
         Parameters:
         -----------
-        method : str, default='iqr'
-            The method to use ('iqr' or 'zscore')
+        column : str
+            The name of the column to analyze
+            
+        Returns:
+        --------
+        dict
+            Distribution analysis results including:
+            - skewness
+            - kurtosis
+            - normality test results
+            - recommended method
+            - recommended thresholds
+        """
+        if self.clean_df is None:
+            raise ValueError("No DataFrame has been set. Use set_data() first.")
+            
+        data = self.clean_df[column]
+        
+        # Calculate basic statistics
+        skewness = data.skew()
+        kurtosis = data.kurtosis()
+        
+        # Perform Shapiro-Wilk test for normality
+        _, p_value = stats.shapiro(data.sample(min(len(data), 5000)))  # Sample to handle large datasets
+        
+        # Calculate robust statistics
+        median = data.median()
+        mad = stats.median_abs_deviation(data)
+        
+        # Make recommendations
+        if abs(skewness) > 2 or abs(kurtosis) > 7:
+            recommended_method = 'iqr'
+            iqr = data.quantile(0.75) - data.quantile(0.25)
+            recommended_threshold = {
+                'lower_factor': 2.0 if skewness < -1 else 1.5,
+                'upper_factor': 2.0 if skewness > 1 else 1.5
+            }
+        elif p_value < 0.05:
+            recommended_method = 'modified_zscore'
+            recommended_threshold = 3.5
+        else:
+            recommended_method = 'zscore'
+            recommended_threshold = 3.0
+            
+        return {
+            'skewness': skewness,
+            'kurtosis': kurtosis,
+            'normality_p_value': p_value,
+            'is_normal': p_value >= 0.05,
+            'median': median,
+            'mad': mad,
+            'recommended_method': recommended_method,
+            'recommended_threshold': recommended_threshold
+        }
+        
+    def remove_outliers_modified_zscore(self, column, threshold=3.5):
+        """
+        Remove outliers using Modified Z-score method, which is more robust for skewed data.
+        Uses Median Absolute Deviation (MAD) instead of standard deviation.
+        
+        Parameters:
+        -----------
+        column : str
+            The name of the column to clean
+        threshold : float, default=3.5
+            The modified Z-score threshold above which to consider a point an outlier
+            
+        Returns:
+        --------
+        pandas.DataFrame
+            A DataFrame with outliers removed
+        dict
+            Information about the outliers removed
+        """
+        if self.clean_df is None:
+            raise ValueError("No DataFrame has been set. Use set_data() first.")
+            
+        # Calculate modified Z-scores
+        median = self.clean_df[column].median()
+        mad = stats.median_abs_deviation(self.clean_df[column])
+        
+        # Handle zero MAD case
+        if mad == 0:
+            print(f"Warning: MAD is zero for column '{column}'. Using standard Z-score method instead.")
+            return self.remove_outliers_zscore(column, threshold)
+            
+        modified_zscores = 0.6745 * (self.clean_df[column] - median) / mad
+        
+        # Identify outliers
+        outlier_mask = np.abs(modified_zscores) > threshold
+        outliers = self.clean_df[outlier_mask]
+        
+        # Create a clean DataFrame without outliers
+        self.clean_df = self.clean_df[~outlier_mask].copy()
+        
+        # Reset index if not preserving
+        if not self.preserve_index:
+            self.clean_df.reset_index(drop=True, inplace=True)
+        
+        # Prepare outlier information
+        outlier_info = {
+            'method': 'Modified Z-score',
+            'column': column,
+            'median': median,
+            'mad': mad,
+            'threshold': threshold,
+            'num_outliers': len(outliers),
+            'percent_removed': (len(outliers) / len(self.original_df)) * 100,
+            'outlier_indices': outliers.index.tolist()
+        }
+        
+        # Store outlier information
+        self.outlier_info[column] = outlier_info
+        
+        return self.clean_df, outlier_info
+        
+    def clean_columns(self, columns=None, method='auto', show_progress=True, **kwargs):
+        """
+        Clean multiple columns using the most appropriate method for each column.
+        
+        Parameters:
+        -----------
         columns : list or None, default=None
-            List of columns to clean. If None, all numeric columns will be cleaned.
-        **kwargs : 
-            Additional parameters to pass to the outlier removal function
+            List of columns to clean. If None, all numeric columns will be used.
+        method : str, default='auto'
+            Method to use for cleaning:
+            - 'auto': Automatically choose best method based on distribution
+            - 'iqr': Use IQR method
+            - 'zscore': Use Z-score method
+            - 'modified_zscore': Use Modified Z-score method
+        show_progress : bool, default=True
+            Whether to show a progress bar during cleaning
+        **kwargs:
+            Additional arguments to pass to the cleaning methods:
+            - threshold: for Z-score methods
+            - lower_factor, upper_factor: for IQR method
             
         Returns:
         --------
@@ -509,28 +636,36 @@ class OutlierCleaner:
         # If no columns specified, use all numeric columns
         if columns is None:
             columns = self.clean_df.select_dtypes(include=np.number).columns.tolist()
-        
-        # Select the appropriate outlier removal function
-        if method.lower() == 'iqr':
-            outlier_func = self.remove_outliers_iqr
-        elif method.lower() in ['zscore', 'z-score', 'z_score']:
-            outlier_func = self.remove_outliers_zscore
-        else:
-            raise ValueError("Method must be either 'iqr' or 'zscore'")
-        
-        # Process each column
-        for col in columns:
-            if col not in self.clean_df.columns:
-                print(f"Warning: Column '{col}' not found in DataFrame. Skipping.")
-                continue
-                
-            if not np.issubdtype(self.clean_df[col].dtype, np.number):
-                print(f"Warning: Column '{col}' is not numeric. Skipping.")
-                continue
             
-            # Apply the outlier removal function
-            outlier_func(col, **kwargs)
-        
+        # Create progress bar if requested
+        if show_progress:
+            columns = tqdm(columns, desc="Cleaning columns")
+            
+        for column in columns:
+            if method == 'auto':
+                # Analyze distribution and get recommended method
+                analysis = self.analyze_distribution(column)
+                recommended_method = analysis['recommended_method']
+                recommended_threshold = analysis['recommended_threshold']
+                
+                if recommended_method == 'iqr':
+                    self.remove_outliers_iqr(column, 
+                                           lower_factor=recommended_threshold['lower_factor'],
+                                           upper_factor=recommended_threshold['upper_factor'])
+                elif recommended_method == 'modified_zscore':
+                    self.remove_outliers_modified_zscore(column, threshold=recommended_threshold)
+                else:
+                    self.remove_outliers_zscore(column, threshold=recommended_threshold)
+            else:
+                if method == 'iqr':
+                    self.remove_outliers_iqr(column, **kwargs)
+                elif method == 'zscore':
+                    self.remove_outliers_zscore(column, **kwargs)
+                elif method == 'modified_zscore':
+                    self.remove_outliers_modified_zscore(column, **kwargs)
+                else:
+                    raise ValueError(f"Unknown method: {method}")
+                    
         return self.clean_df, self.outlier_info
     
     def visualize_outliers(self, column):
@@ -641,6 +776,31 @@ class OutlierCleaner:
         if self.original_df is not None:
             self.clean_df = self.original_df.copy()
             self.outlier_info = {}
+
+    def get_outlier_indices(self, column=None):
+        """
+        Get the indices of outliers for specified column(s).
+        
+        Parameters:
+        -----------
+        column : str or None, default=None
+            Column name to get outlier indices for.
+            If None, returns indices for all columns that have been cleaned.
+            
+        Returns:
+        --------
+        dict
+            Dictionary mapping column names to lists of outlier indices.
+            For columns without outlier information, returns an empty list.
+        """
+        if column is not None:
+            if column not in self.outlier_info:
+                return {column: []}
+            info = self.outlier_info[column]
+            return {column: info.get('outlier_indices', [])}
+        
+        return {col: info.get('outlier_indices', []) 
+               for col, info in self.outlier_info.items()}
 
 
 # Example usage:
