@@ -94,11 +94,17 @@ Remove outliers using the Modified Z-score method (robust to non-normal distribu
 ### get_outlier_indices(column=None)
 Get the indices of outliers for specified column(s).
 - Returns dictionary mapping columns to outlier indices
-- Handles missing columns gracefully
-- Useful for tracking removed data points
+- Handles missing columns gracefully by returning empty lists
+- Useful for tracking and analyzing removed data points
+- Can retrieve indices for a specific column or all processed columns
+
+### get_outlier_stats()
+Get comprehensive outlier statistics without removing data points.
+- Provides potential outlier counts and percentages
+- Calculates bounds and thresholds for each method
+- Returns detailed statistics for analysis and comparison
 
 ### Additional Methods
-- `get_outlier_stats()`: Get comprehensive outlier statistics
 - `plot_outlier_analysis()`: Create detailed visualizations
 - `compare_methods()`: Compare different detection methods
 - `add_zscore_columns()`: Add Z-score columns for analysis
@@ -115,6 +121,24 @@ Get the indices of outliers for specified column(s).
 - scipy>=1.7.0
 - scikit-learn>=0.24.0 (for examples)
 - tqdm>=4.62.0
+
+## Changelog
+
+### Version 1.0.2
+- Enhanced outlier indices tracking in all removal methods
+- Improved `get_outlier_indices()` to handle missing columns gracefully
+- Optimized outlier statistics calculation
+- Removed redundant outlier indices from `get_outlier_stats()` output
+
+### Version 1.0.1
+- Fixed author name spelling
+- Updated documentation and examples
+- Added comprehensive test coverage
+
+### Version 1.0.0
+- Initial release with core functionality
+- Added distribution analysis and automatic method selection
+- Implemented visualization tools and progress tracking
 
 ## Author
 
