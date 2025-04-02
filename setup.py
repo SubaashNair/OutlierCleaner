@@ -5,13 +5,13 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="outlier-cleaner",
-    version="0.1.2",
+    version="0.1.3",
     author="Subashanan Nair",
     author_email="subaashnair12@gmail.com",  # Replace with your email
     description="A Python package for detecting and removing outliers in data using various statistical methods",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/OutlierCleaner",  # Replace with your GitHub URL
+    url="https://github.com/SubaashNair/OutlierCleaner",  # Updated with correct URL
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",
