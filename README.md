@@ -118,7 +118,7 @@ Get the indices of outliers for specified column(s).
 
 ## Author
 
-Subashan Annai
+Subashanan Nair
 
 ## Contributing
 
