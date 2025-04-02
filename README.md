@@ -14,7 +14,7 @@ A Python package for detecting and removing outliers in data using various stati
 ## Installation
 
 ```bash
-pip install outlier-cleaner
+pip install outlier-cleaner==0.1.1
 ```
 
 ## Usage
