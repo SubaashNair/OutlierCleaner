@@ -232,6 +232,257 @@ class OutlierCleaner:
         
         return self.clean_df, outlier_info
     
+    def get_outlier_stats(self, columns=None, methods=['iqr', 'zscore'], iqr_factor=1.5, zscore_threshold=3.0):
+        """
+        Get comprehensive statistics about potential outliers without removing them.
+        
+        Parameters:
+        -----------
+        columns : list or None, default=None
+            List of columns to analyze. If None, all numeric columns will be analyzed.
+        methods : list, default=['iqr', 'zscore']
+            List of methods to use for outlier detection
+        iqr_factor : float, default=1.5
+            The factor to multiply the IQR by for the IQR method
+        zscore_threshold : float, default=3.0
+            The Z-score threshold for the Z-score method
+            
+        Returns:
+        --------
+        dict
+            A dictionary containing outlier statistics for each column and method:
+            {
+                'column_name': {
+                    'iqr': {
+                        'potential_outliers': int,
+                        'percent_outliers': float,
+                        'bounds': (lower, upper),
+                        'outlier_indices': list
+                    },
+                    'zscore': {
+                        'potential_outliers': int,
+                        'percent_outliers': float,
+                        'threshold': float,
+                        'outlier_indices': list
+                    }
+                }
+            }
+        """
+        if self.clean_df is None:
+            raise ValueError("No DataFrame has been set. Use set_data() first.")
+            
+        # If no columns specified, use all numeric columns
+        if columns is None:
+            columns = self.clean_df.select_dtypes(include=np.number).columns.tolist()
+            
+        stats = {}
+        
+        for column in columns:
+            if not np.issubdtype(self.clean_df[column].dtype, np.number):
+                print(f"Warning: Column '{column}' is not numeric. Skipping.")
+                continue
+                
+            stats[column] = {}
+            
+            if 'iqr' in methods:
+                # Calculate IQR statistics
+                Q1 = self.clean_df[column].quantile(0.25)
+                Q3 = self.clean_df[column].quantile(0.75)
+                IQR = Q3 - Q1
+                lower_bound = Q1 - (iqr_factor * IQR)
+                upper_bound = Q3 + (iqr_factor * IQR)
+                
+                outlier_mask = (self.clean_df[column] < lower_bound) | (self.clean_df[column] > upper_bound)
+                outlier_indices = self.clean_df[outlier_mask].index.tolist()
+                
+                stats[column]['iqr'] = {
+                    'potential_outliers': len(outlier_indices),
+                    'percent_outliers': (len(outlier_indices) / len(self.clean_df)) * 100,
+                    'bounds': (lower_bound, upper_bound),
+                    'outlier_indices': outlier_indices,
+                    'Q1': Q1,
+                    'Q3': Q3,
+                    'IQR': IQR
+                }
+            
+            if 'zscore' in methods:
+                # Calculate Z-score statistics
+                zscore_col = f"{column}_zscore"
+                if zscore_col in self.clean_df.columns:
+                    z_scores = np.abs(self.clean_df[zscore_col])
+                else:
+                    z_scores = np.abs((self.clean_df[column] - self.clean_df[column].mean()) / 
+                                    self.clean_df[column].std())
+                
+                outlier_mask = z_scores > zscore_threshold
+                outlier_indices = self.clean_df[outlier_mask].index.tolist()
+                
+                stats[column]['zscore'] = {
+                    'potential_outliers': len(outlier_indices),
+                    'percent_outliers': (len(outlier_indices) / len(self.clean_df)) * 100,
+                    'threshold': zscore_threshold,
+                    'outlier_indices': outlier_indices,
+                    'mean': self.clean_df[column].mean(),
+                    'std': self.clean_df[column].std()
+                }
+        
+        return stats
+        
+    def plot_outlier_analysis(self, columns=None, methods=['iqr', 'zscore'], figsize=(15, 5)):
+        """
+        Create comprehensive visualizations for outlier analysis.
+        
+        Parameters:
+        -----------
+        columns : list or None, default=None
+            List of columns to analyze. If None, all numeric columns will be analyzed.
+        methods : list, default=['iqr', 'zscore']
+            List of methods to use for outlier detection
+        figsize : tuple, default=(15, 5)
+            Size of each figure
+            
+        Returns:
+        --------
+        dict
+            Dictionary of matplotlib figures for each column
+        """
+        if self.clean_df is None:
+            raise ValueError("No DataFrame has been set. Use set_data() first.")
+            
+        # Get outlier statistics
+        stats = self.get_outlier_stats(columns, methods)
+        figures = {}
+        
+        for column in stats:
+            # Create figure with subplots
+            fig, axes = plt.subplots(1, 3, figsize=figsize)
+            fig.suptitle(f'Outlier Analysis for {column}', fontsize=14)
+            
+            # Box plot
+            sns.boxplot(data=self.clean_df, y=column, ax=axes[0])
+            axes[0].set_title('Box Plot')
+            
+            # Distribution plot with outlier thresholds
+            sns.histplot(data=self.clean_df, x=column, ax=axes[1])
+            axes[1].set_title('Distribution')
+            
+            if 'iqr' in stats[column]:
+                lower, upper = stats[column]['iqr']['bounds']
+                axes[1].axvline(lower, color='r', linestyle='--', alpha=0.5, label='IQR Bounds')
+                axes[1].axvline(upper, color='r', linestyle='--', alpha=0.5)
+            
+            # Z-score plot
+            zscore_col = f"{column}_zscore"
+            if zscore_col in self.clean_df.columns:
+                z_scores = self.clean_df[zscore_col]
+            else:
+                z_scores = (self.clean_df[column] - self.clean_df[column].mean()) / self.clean_df[column].std()
+            
+            sns.scatterplot(x=range(len(z_scores)), y=z_scores, ax=axes[2])
+            axes[2].axhline(y=3, color='r', linestyle='--', alpha=0.5, label='3σ Threshold')
+            axes[2].axhline(y=-3, color='r', linestyle='--', alpha=0.5)
+            axes[2].set_title('Z-scores')
+            axes[2].set_xlabel('Index')
+            axes[2].set_ylabel('Z-score')
+            
+            # Add legend
+            axes[1].legend()
+            axes[2].legend()
+            
+            # Adjust layout
+            plt.tight_layout()
+            figures[column] = fig
+            
+        return figures
+        
+    def compare_methods(self, columns=None, methods=['iqr', 'zscore'], iqr_factor=1.5, zscore_threshold=3.0):
+        """
+        Compare different outlier detection methods and their agreement.
+        
+        Parameters:
+        -----------
+        columns : list or None, default=None
+            List of columns to analyze. If None, all numeric columns will be analyzed.
+        methods : list, default=['iqr', 'zscore']
+            List of methods to compare
+        iqr_factor : float, default=1.5
+            The factor to multiply the IQR by for the IQR method
+        zscore_threshold : float, default=3.0
+            The Z-score threshold for the Z-score method
+            
+        Returns:
+        --------
+        dict
+            A dictionary containing comparison metrics:
+            {
+                'column_name': {
+                    'agreement_percentage': float,  # % of points where methods agree
+                    'common_outliers': list,  # indices flagged by all methods
+                    'method_specific_outliers': {  # indices unique to each method
+                        'iqr': list,
+                        'zscore': list
+                    },
+                    'summary': str  # Text summary of the comparison
+                }
+            }
+        """
+        if self.clean_df is None:
+            raise ValueError("No DataFrame has been set. Use set_data() first.")
+            
+        # Get outlier statistics
+        stats = self.get_outlier_stats(columns, methods, iqr_factor, zscore_threshold)
+        comparison = {}
+        
+        for column in stats:
+            comparison[column] = {}
+            outliers_by_method = {}
+            
+            # Get outlier indices for each method
+            for method in methods:
+                if method in stats[column]:
+                    outliers_by_method[method] = set(stats[column][method]['outlier_indices'])
+            
+            # Find common outliers across all methods
+            if len(methods) > 1:
+                common_outliers = set.intersection(*outliers_by_method.values())
+                
+                # Calculate method-specific outliers
+                method_specific = {}
+                for method in methods:
+                    if method in outliers_by_method:
+                        method_specific[method] = outliers_by_method[method] - common_outliers
+                
+                # Calculate agreement percentage
+                all_outliers = set.union(*outliers_by_method.values())
+                agreement_percentage = (len(common_outliers) / len(all_outliers) * 100) if all_outliers else 100.0
+                
+                comparison[column] = {
+                    'agreement_percentage': agreement_percentage,
+                    'common_outliers': sorted(list(common_outliers)),
+                    'method_specific_outliers': {m: sorted(list(s)) for m, s in method_specific.items()},
+                    'summary': f"""
+                    Analysis for column '{column}':
+                    - Total potential outliers: {len(all_outliers)}
+                    - Outliers identified by all methods: {len(common_outliers)}
+                    - Method agreement: {agreement_percentage:.1f}%
+                    - Method-specific counts: {', '.join(f"{m}: {len(v)}" for m, v in method_specific.items())}
+                    """
+                }
+            else:
+                # If only one method, set its outliers as common
+                method = methods[0]
+                comparison[column] = {
+                    'agreement_percentage': 100.0,
+                    'common_outliers': sorted(list(outliers_by_method[method])),
+                    'method_specific_outliers': {method: []},
+                    'summary': f"""
+                    Analysis for column '{column}':
+                    - Total outliers identified by {method}: {len(outliers_by_method[method])}
+                    """
+                }
+        
+        return comparison
+        
     def clean_columns(self, method='iqr', columns=None, **kwargs):
         """
         Clean multiple columns in a DataFrame by removing outliers.

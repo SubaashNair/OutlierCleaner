@@ -1,18 +1,17 @@
 # OutlierCleaner
 
-A Python package for detecting and removing outliers in data using various statistical methods such as IQR and Z-score.
+A Python package for detecting and removing outliers in data using various statistical methods.
 
 ## Features
 
-- Remove outliers using IQR (Interquartile Range) method
-- Remove outliers using Z-score method
-- Add Z-score columns to your DataFrame
+- Clean outliers using IQR (Interquartile Range) method
+- Clean outliers using Z-score method
+- Add Z-score columns for analysis
 - Clean multiple columns using pre-calculated Z-scores
 - Batch clean all Z-score columns at once
-- Visualize outliers with boxplots and histograms
-- Generate detailed reports on outlier removal
-- Support for cleaning multiple columns at once
-- Comprehensive documentation and examples
+- Advanced outlier analysis and statistics
+- Comprehensive visualization tools
+- Method comparison and agreement analysis
 
 ## Installation
 
@@ -23,94 +22,90 @@ pip install outlier-cleaner
 ## Usage
 
 ```python
-from outlier_cleaner import OutlierCleaner
 import pandas as pd
-import numpy as np
+from outlier_cleaner import OutlierCleaner
 
-# Create a sample DataFrame
-data = {
-    'height': np.random.normal(170, 10, 1000),
-    'weight': np.random.normal(70, 15, 1000)
-}
-df = pd.DataFrame(data)
+# Create sample data
+df = pd.DataFrame({
+    'height': [170, 175, 160, 180, 250, 165, 170],  # 250 is an outlier
+    'weight': [70, 75, 60, 80, 180, 65, 72]  # 180 is an outlier
+})
 
-# Create an OutlierCleaner instance
+# Initialize cleaner
 cleaner = OutlierCleaner(df)
 
-# Method 1: Add Z-score columns and clean using them
-df_with_zscores = cleaner.add_zscore_columns()  # Adds '_zscore' columns for all numeric columns
-cleaned_df, info = cleaner.clean_zscore_columns(threshold=3.0)  # Cleans all columns with Z-scores
+# Get comprehensive outlier statistics
+stats = cleaner.get_outlier_stats(['height', 'weight'])
+print(stats['height']['iqr']['potential_outliers'])  # Number of potential outliers
+print(stats['height']['zscore']['outlier_indices'])  # Indices of outliers
 
-# Method 2: Add Z-scores for specific columns only
-cleaner.add_zscore_columns(columns=['height'])  # Adds only 'height_zscore'
-cleaned_df, info = cleaner.remove_outliers_zscore('height', threshold=2.5)  # Uses existing Z-score column
+# Visualize outlier analysis
+figures = cleaner.plot_outlier_analysis(['height', 'weight'])
+# figures['height'].show()  # Display the figure for height
 
-# Method 3: Clean using IQR method
-cleaner.reset()  # Reset to original data
-cleaned_df, info = cleaner.remove_outliers_iqr('height')
-cleaner.visualize_outliers('height')
+# Compare different outlier detection methods
+comparison = cleaner.compare_methods(['height', 'weight'])
+print(comparison['height']['summary'])  # Print comparison summary
 
-# Method 4: Clean multiple columns at once
-cleaner.reset()
-cleaned_df, info = cleaner.clean_columns(method='iqr', columns=['height', 'weight'])
+# Add Z-score columns
+cleaner.add_zscore_columns()
 
-# Get a summary report
-report = cleaner.get_summary_report()
-print(report)
+# Clean all columns with Z-scores at once
+cleaned_df, outlier_info = cleaner.clean_zscore_columns(threshold=3.0)
+
+# Clean specific columns using IQR method
+cleaned_df, outlier_info = cleaner.remove_outliers_iqr('height', lower_factor=1.5, upper_factor=1.5)
 ```
 
 ## Methods
 
-### Add Z-score Columns
-```python
-cleaner.add_zscore_columns(columns=None)
-```
-- Adds new columns with Z-scores for each numeric column
-- New columns are named as original_column_name + '_zscore'
-- If columns=None, processes all numeric columns
-- Returns the modified DataFrame
+### get_outlier_stats(columns=None, methods=['iqr', 'zscore'])
+Get comprehensive statistics about potential outliers without removing them.
+- Returns detailed statistics for each column and method
+- Includes counts, percentages, and indices of outliers
 
-### Clean All Z-score Columns
-```python
-cleaner.clean_zscore_columns(threshold=3.0)
-```
-- Automatically cleans all columns that have associated Z-score columns
-- Uses pre-calculated Z-scores for efficiency
-- Applies the same threshold to all columns
+### plot_outlier_analysis(columns=None, methods=['iqr', 'zscore'])
+Create comprehensive visualizations for outlier analysis.
+- Generates box plots, distributions, and Z-score plots
+- Shows outlier thresholds and boundaries
+- Returns dictionary of matplotlib figures
+
+### compare_methods(columns=None, methods=['iqr', 'zscore'])
+Compare different outlier detection methods and their agreement.
+- Calculates agreement percentage between methods
+- Identifies common outliers and method-specific outliers
+- Provides detailed comparison summary
+
+### add_zscore_columns(columns=None)
+Add Z-score columns to the DataFrame for specified columns.
+- Creates new columns with '_zscore' suffix
+- Useful for outlier detection and analysis
+
+### clean_zscore_columns(threshold=3.0)
+Clean all columns that have associated Z-score columns.
+- Removes outliers based on Z-score threshold
 - Returns cleaned DataFrame and outlier information
 
-### IQR Method
-```python
-cleaner.remove_outliers_iqr(column, lower_factor=1.5, upper_factor=1.5)
-```
+### remove_outliers_iqr(column, lower_factor=1.5, upper_factor=1.5)
+Remove outliers using the IQR method.
+- Configurable factors for lower and upper bounds
+- Returns cleaned DataFrame and outlier information
 
-### Z-score Method
-```python
-cleaner.remove_outliers_zscore(column, threshold=3.0)
-```
-- Now uses pre-calculated Z-scores if available
-- Falls back to calculating Z-scores if needed
-
-### Clean Multiple Columns
-```python
-cleaner.clean_columns(method='iqr', columns=None, **kwargs)
-```
+### remove_outliers_zscore(column, threshold=3.0)
+Remove outliers using the Z-score method.
+- Uses existing Z-score columns if available
+- Returns cleaned DataFrame and outlier information
 
 ## Requirements
 
-- Python >= 3.7
-- numpy >= 1.19.0
-- pandas >= 1.2.0
-- matplotlib >= 3.3.0
-- seaborn >= 0.11.0
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+- numpy
+- pandas
+- matplotlib
+- seaborn
 
 ## Author
 
-Subashanan Nair
+Subashan Annai
 
 ## Contributing
 
