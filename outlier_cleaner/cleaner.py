@@ -46,6 +46,44 @@ class OutlierCleaner:
         self.clean_df = df.copy()
         self.outlier_info = {}
         
+    def add_zscore_columns(self, columns=None):
+        """
+        Add Z-score columns to the DataFrame for specified columns.
+        The new columns will have '_zscore' appended to the original column names.
+        
+        Parameters:
+        -----------
+        columns : list or None, default=None
+            List of columns to calculate Z-scores for. If None, all numeric columns will be used.
+            
+        Returns:
+        --------
+        pandas.DataFrame
+            The DataFrame with added Z-score columns
+        """
+        if self.clean_df is None:
+            raise ValueError("No DataFrame has been set. Use set_data() first.")
+            
+        # If no columns specified, use all numeric columns
+        if columns is None:
+            columns = self.clean_df.select_dtypes(include=np.number).columns.tolist()
+        
+        # Process each column
+        for col in columns:
+            if col not in self.clean_df.columns:
+                print(f"Warning: Column '{col}' not found in DataFrame. Skipping.")
+                continue
+                
+            if not np.issubdtype(self.clean_df[col].dtype, np.number):
+                print(f"Warning: Column '{col}' is not numeric. Skipping.")
+                continue
+            
+            # Calculate Z-scores
+            zscore_col = f"{col}_zscore"
+            self.clean_df[zscore_col] = (self.clean_df[col] - self.clean_df[col].mean()) / self.clean_df[col].std()
+        
+        return self.clean_df
+        
     def remove_outliers_iqr(self, column, lower_factor=1.5, upper_factor=1.5):
         """
         Remove outliers from a DataFrame column using the IQR method.

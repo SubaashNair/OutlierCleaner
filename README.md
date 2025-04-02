@@ -6,6 +6,7 @@ A Python package for detecting and removing outliers in data using various stati
 
 - Remove outliers using IQR (Interquartile Range) method
 - Remove outliers using Z-score method
+- Add Z-score columns to your DataFrame
 - Visualize outliers with boxplots and histograms
 - Generate detailed reports on outlier removal
 - Support for cleaning multiple columns at once
@@ -14,7 +15,7 @@ A Python package for detecting and removing outliers in data using various stati
 ## Installation
 
 ```bash
-pip install outlier-cleaner==0.1.1
+pip install outlier-cleaner
 ```
 
 ## Usage
@@ -34,16 +35,21 @@ df = pd.DataFrame(data)
 # Create an OutlierCleaner instance
 cleaner = OutlierCleaner(df)
 
-# Method 1: Clean using IQR method
+# Method 1: Add Z-score columns
+cleaner.add_zscore_columns()  # Adds 'normal_data_zscore' and 'skewed_data_zscore' columns
+# Or for specific columns only:
+cleaner.add_zscore_columns(columns=['normal_data'])  # Adds only 'normal_data_zscore'
+
+# Method 2: Clean using IQR method
 cleaner.remove_outliers_iqr('normal_data')
 cleaner.visualize_outliers('normal_data')
 
-# Method 2: Clean using Z-score method
+# Method 3: Clean using Z-score method
 cleaner.reset()  # Reset to original data
 cleaner.remove_outliers_zscore('normal_data', threshold=2.5)
 cleaner.visualize_outliers('normal_data')
 
-# Method 3: Clean multiple columns at once
+# Method 4: Clean multiple columns at once
 cleaner.reset()
 cleaner.clean_columns(method='iqr', columns=['normal_data', 'skewed_data'])
 
@@ -53,6 +59,15 @@ print(report)
 ```
 
 ## Methods
+
+### Add Z-score Columns
+```python
+cleaner.add_zscore_columns(columns=None)
+```
+- Adds new columns with Z-scores for each numeric column
+- New columns are named as original_column_name + '_zscore'
+- If columns=None, processes all numeric columns
+- Returns the modified DataFrame
 
 ### IQR Method
 ```python
