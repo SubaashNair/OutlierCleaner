@@ -4,8 +4,8 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="outlier-cleaner",
-    version="0.1.5",
+    name="outlier_cleaner",
+    version="0.1.6",
     author="Subashanan Nair",
     author_email="subaashnair12@gmail.com",  # Replace with your email
     description="A Python package for detecting and removing outliers in data using various statistical methods",
