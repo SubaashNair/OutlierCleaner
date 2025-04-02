@@ -147,6 +147,7 @@ class OutlierCleaner:
     def remove_outliers_zscore(self, column, threshold=3.0):
         """
         Remove outliers from a DataFrame column using the Z-score method.
+        If a Z-score column exists (column_zscore), it will use that instead of recalculating.
         
         Parameters:
         -----------
@@ -165,9 +166,15 @@ class OutlierCleaner:
         if self.clean_df is None:
             raise ValueError("No DataFrame has been set. Use set_data() first.")
             
-        # Calculate Z-scores
-        z_scores = np.abs((self.clean_df[column] - self.clean_df[column].mean()) / 
-                          self.clean_df[column].std())
+        # Check if Z-score column exists
+        zscore_col = f"{column}_zscore"
+        if zscore_col in self.clean_df.columns:
+            # Use existing Z-scores
+            z_scores = np.abs(self.clean_df[zscore_col])
+        else:
+            # Calculate Z-scores
+            z_scores = np.abs((self.clean_df[column] - self.clean_df[column].mean()) / 
+                             self.clean_df[column].std())
         
         # Identify outliers
         outliers = self.clean_df[z_scores > threshold]
@@ -349,6 +356,40 @@ class OutlierCleaner:
         if self.original_df is not None:
             self.clean_df = self.original_df.copy()
             self.outlier_info = {}
+    
+    def clean_zscore_columns(self, threshold=3.0):
+        """
+        Clean all columns that have associated Z-score columns.
+        This method will remove outliers from all columns that have '_zscore' columns.
+        
+        Parameters:
+        -----------
+        threshold : float, default=3.0
+            The Z-score threshold above which to consider a point an outlier
+            
+        Returns:
+        --------
+        pandas.DataFrame
+            A DataFrame with outliers removed from all Z-score columns
+        dict
+            Information about outliers removed from each column
+        """
+        if self.clean_df is None:
+            raise ValueError("No DataFrame has been set. Use set_data() first.")
+        
+        # Find all columns with Z-scores
+        zscore_cols = [col for col in self.clean_df.columns if col.endswith('_zscore')]
+        original_cols = [col[:-7] for col in zscore_cols]  # Remove '_zscore' suffix
+        
+        if not zscore_cols:
+            print("No Z-score columns found. Use add_zscore_columns() first.")
+            return self.clean_df, self.outlier_info
+        
+        # Clean each column
+        for col in original_cols:
+            self.remove_outliers_zscore(col, threshold=threshold)
+        
+        return self.clean_df, self.outlier_info
 
 
 # Example usage:
