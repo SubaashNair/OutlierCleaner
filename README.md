@@ -235,6 +235,13 @@ Get comprehensive outlier statistics without removing data points.
 
 ## Changelog
 
+### Version 1.0.7 (2024-03-24)
+- Enhanced visualization tools with improved plot customization
+- Added comprehensive docstrings to all visualization functions
+- Improved error handling in plotting functions
+- Updated documentation with detailed usage examples
+- Code optimization and performance improvements
+
 ### Version 1.0.6
 - Added new standalone visualization functions:
   - plot_boxplot: Box plot with outlier highlighting

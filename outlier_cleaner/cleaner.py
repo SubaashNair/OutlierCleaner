@@ -351,71 +351,80 @@ class OutlierCleaner:
         
         return stats_df
         
-    def plot_outlier_analysis(self, columns=None, methods=['iqr', 'zscore'], figsize=(15, 5)):
+    def plot_outlier_analysis(self, columns=None, methods=None, figsize=(15, 5)):
         """
-        Create comprehensive visualizations for outlier analysis.
+        Generate comprehensive outlier analysis plots for specified columns.
         
-        Parameters:
-        -----------
-        columns : list or None, default=None
-            List of columns to analyze. If None, all numeric columns will be analyzed.
-        methods : list, default=['iqr', 'zscore']
-            List of methods to use for outlier detection
-        figsize : tuple, default=(15, 5)
-            Size of each figure
+        Parameters
+        ----------
+        columns : str or list of str, optional
+            Column(s) to analyze. If None, analyzes all numeric columns.
+            Column names are case-insensitive.
+        methods : list of str, optional
+            Outlier detection methods to use. If None, uses all available methods.
+        figsize : tuple, optional
+            Base figure size for each subplot (width, height). Default is (15, 5).
             
-        Returns:
-        --------
+        Returns
+        -------
         dict
-            Dictionary of matplotlib figures for each column
+            Dictionary of matplotlib figures keyed by column names.
         """
-        if self.clean_df is None:
-            raise ValueError("No DataFrame has been set. Use set_data() first.")
-            
-        # Get outlier statistics
-        stats = self.get_outlier_stats(columns, methods)
-        figures = {}
+        if not hasattr(self, 'clean_df') or self.clean_df is None:
+            raise ValueError("No data available. Please set data using set_data() first.")
+
+        # If no columns specified, use all numeric columns
+        if columns is None:
+            columns = self.clean_df.select_dtypes(include=['int64', 'float64']).columns.tolist()
+        elif isinstance(columns, str):
+            columns = [columns]
         
-        for column in stats:
-            # Create figure with subplots
+        # Create case-insensitive column mapping
+        column_map = {col.lower(): col for col in self.clean_df.columns}
+        
+        # Validate columns exist in the DataFrame (case-insensitive)
+        invalid_columns = []
+        resolved_columns = []
+        for col in columns:
+            col_lower = col.lower()
+            if col_lower in column_map:
+                resolved_columns.append(column_map[col_lower])
+            else:
+                invalid_columns.append(col)
+        
+        if invalid_columns:
+            available_cols = "\n".join(self.clean_df.columns)
+            raise ValueError(
+                f"Column(s) {invalid_columns} not found in the dataset.\n"
+                f"Available columns are:\n{available_cols}"
+            )
+
+        figures = {}
+        for column in resolved_columns:
+            if not pd.api.types.is_numeric_dtype(self.clean_df[column]):
+                print(f"Warning: Skipping non-numeric column '{column}'")
+                continue
+            
             fig, axes = plt.subplots(1, 3, figsize=figsize)
             fig.suptitle(f'Outlier Analysis for {column}', fontsize=14)
             
-            # Box plot
-            sns.boxplot(data=self.clean_df, y=column, ax=axes[0])
+            # Box plot - Fixed to use the correct data parameter format
+            sns.boxplot(data=self.clean_df[column], ax=axes[0])
             axes[0].set_title('Box Plot')
+            axes[0].set_xlabel(column)
             
             # Distribution plot with outlier thresholds
-            sns.histplot(data=self.clean_df, x=column, ax=axes[1])
-            axes[1].set_title('Distribution')
+            sns.histplot(data=self.clean_df[column], ax=axes[1], kde=True)
+            axes[1].set_title('Distribution Plot')
+            axes[1].set_xlabel(column)
             
-            if 'iqr' in stats[column]:
-                lower, upper = stats[column]['iqr']['bounds']
-                axes[1].axvline(lower, color='r', linestyle='--', alpha=0.5, label='IQR Bounds')
-                axes[1].axvline(upper, color='r', linestyle='--', alpha=0.5)
+            # Q-Q plot
+            stats.probplot(self.clean_df[column].dropna(), dist="norm", plot=axes[2])
+            axes[2].set_title('Q-Q Plot')
             
-            # Z-score plot
-            zscore_col = f"{column}_zscore"
-            if zscore_col in self.clean_df.columns:
-                z_scores = self.clean_df[zscore_col]
-            else:
-                z_scores = (self.clean_df[column] - self.clean_df[column].mean()) / self.clean_df[column].std()
-            
-            sns.scatterplot(x=range(len(z_scores)), y=z_scores, ax=axes[2])
-            axes[2].axhline(y=3, color='r', linestyle='--', alpha=0.5, label='3σ Threshold')
-            axes[2].axhline(y=-3, color='r', linestyle='--', alpha=0.5)
-            axes[2].set_title('Z-scores')
-            axes[2].set_xlabel('Index')
-            axes[2].set_ylabel('Z-score')
-            
-            # Add legend
-            axes[1].legend()
-            axes[2].legend()
-            
-            # Adjust layout
             plt.tight_layout()
             figures[column] = fig
-            
+        
         return figures
         
     def compare_methods(self, columns=None, methods=['iqr', 'zscore'], iqr_factor=1.5, zscore_threshold=3.0):
