@@ -10,7 +10,11 @@ A Python package for detecting and removing outliers in data using various stati
   - Z-score
   - Modified Z-score (robust to non-normal distributions)
 - Advanced distribution analysis and method recommendations
-- Comprehensive visualization tools
+- Comprehensive visualization tools:
+  - Standalone plotting functions
+  - Integrated analysis plots
+  - Distribution visualization
+  - Box plots and Q-Q plots
 - Progress tracking for batch operations
 - Index preservation options
 - Outlier tracking and statistics
@@ -25,12 +29,41 @@ pip install outlier-cleaner
 
 ## Usage
 
+### Basic Usage
+
+```python
+import pandas as pd
+from outlier_cleaner import OutlierCleaner, plot_outliers, plot_distribution
+
+# Create or load your DataFrame
+df = pd.DataFrame({'column1': [1, 2, 3, 100, 4, 5, 6]})
+
+# Using standalone visualization functions
+outliers = [False, False, False, True, False, False, False]
+plot_outliers(df['column1'], outliers)
+plot_distribution(df['column1'], outliers)
+
+# Using OutlierCleaner
+cleaner = OutlierCleaner(df)
+
+# Generate comprehensive analysis plots for all numeric columns
+figures = cleaner.plot_outlier_analysis()
+
+# Or analyze specific columns
+figures = cleaner.plot_outlier_analysis(['column1'])
+
+# Clean the data
+cleaned_df, info = cleaner.clean_columns(['column1'], method='auto')
+```
+
+### Advanced Example
+
 Here's a comprehensive example using the California Housing dataset:
 
 ```python
 import pandas as pd
 from sklearn.datasets import fetch_california_housing
-from outlier_cleaner import OutlierCleaner
+from outlier_cleaner import OutlierCleaner, plot_outliers, plot_distribution
 
 # Load California Housing dataset
 housing = fetch_california_housing()
@@ -49,7 +82,7 @@ for column in ['MedInc', 'AveRooms', 'PRICE']:
 
 # Get outlier statistics
 stats = cleaner.get_outlier_stats(['MedInc', 'AveRooms', 'PRICE'])
-print(f"\nPotential outliers in MedInc: {stats['MedInc']['iqr']['potential_outliers']}")
+print(f"\nPotential outliers in MedInc: {stats.loc[stats['Column'] == 'MedInc', 'Potential Outliers'].values[0]}")
 
 # Clean data with automatic method selection
 cleaned_df, info = cleaner.clean_columns(
@@ -62,13 +95,55 @@ cleaned_df, info = cleaner.clean_columns(
 outliers = cleaner.get_outlier_indices('MedInc')
 print(f"\nOutlier indices for MedInc: {outliers['MedInc'][:5]}")
 
-# Visualize results
+# Generate comprehensive analysis plots
 figures = cleaner.plot_outlier_analysis(['MedInc', 'AveRooms', 'PRICE'])
-# figures['MedInc'].show()  # Display the figure for MedInc
 
 # Compare methods
 comparison = cleaner.compare_methods(['MedInc', 'PRICE'])
 print(comparison['MedInc']['summary'])
+```
+
+## Visualization Tools
+
+### Standalone Functions
+
+#### plot_outliers(data, outliers)
+Create a scatter plot highlighting outliers in the data.
+- Blue points: Normal data points
+- Red points: Outlier points
+- Customizable figure size and title
+
+```python
+from outlier_cleaner import plot_outliers
+plot_outliers(data=df['column'], outliers=outlier_mask, title='My Data')
+```
+
+#### plot_distribution(data, outliers)
+Plot the distribution of data with optional outlier highlighting.
+- Shows kernel density estimation (KDE)
+- Separate distributions for normal and outlier points
+- Customizable figure size and title
+
+```python
+from outlier_cleaner import plot_distribution
+plot_distribution(data=df['column'], outliers=outlier_mask)
+```
+
+### Integrated Analysis Plots
+
+#### plot_outlier_analysis(columns=None)
+Generate comprehensive outlier analysis plots for specified columns.
+- Box Plot: Shows quartiles and outlier points
+- Distribution Plot: Shows data distribution with KDE
+- Q-Q Plot: Assesses normality of the data
+- Automatically analyzes all numeric columns if none specified
+
+```python
+cleaner = OutlierCleaner(df)
+# Analyze all numeric columns
+figures = cleaner.plot_outlier_analysis()
+# Or specific columns
+figures = cleaner.plot_outlier_analysis(['column1', 'column2'])
 ```
 
 ## Methods
@@ -105,7 +180,6 @@ Get comprehensive outlier statistics without removing data points.
 - Returns detailed statistics for analysis and comparison
 
 ### Additional Methods
-- `plot_outlier_analysis()`: Create detailed visualizations
 - `compare_methods()`: Compare different detection methods
 - `add_zscore_columns()`: Add Z-score columns for analysis
 - `clean_zscore_columns()`: Clean using Z-score thresholds
@@ -123,6 +197,20 @@ Get comprehensive outlier statistics without removing data points.
 - tqdm>=4.62.0
 
 ## Changelog
+
+### Version 1.0.5
+- Fixed boxplot visualization in plot_outlier_analysis
+- Enhanced automatic column handling for visualization functions
+- Improved error messages and user feedback
+- Updated documentation with clearer examples
+
+### Version 1.0.4
+- Added standalone visualization functions in utils.py
+- Added comprehensive plot_outlier_analysis method
+- Enhanced distribution visualization with KDE
+- Added Q-Q plots for normality assessment
+- Improved error handling and user feedback
+- Updated documentation with visualization examples
 
 ### Version 1.0.2
 - Enhanced outlier indices tracking in all removal methods
