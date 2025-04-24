@@ -11,10 +11,12 @@ A Python package for detecting and removing outliers in data using various stati
   - Modified Z-score (robust to non-normal distributions)
 - Advanced distribution analysis and method recommendations
 - Comprehensive visualization tools:
-  - Standalone plotting functions
-  - Integrated analysis plots
-  - Distribution visualization
-  - Box plots and Q-Q plots
+  - Standalone plotting functions (scatter, distribution, box, Q-Q plots)
+  - Integrated analysis plots with 2x2 dashboard view
+  - Distribution visualization with KDE
+  - Box plots with outlier highlighting
+  - Q-Q plots for normality assessment
+  - Combined analysis dashboard
 - Progress tracking for batch operations
 - Index preservation options
 - Outlier tracking and statistics
@@ -129,6 +131,41 @@ from outlier_cleaner import plot_distribution
 plot_distribution(data=df['column'], outliers=outlier_mask)
 ```
 
+#### plot_boxplot(data, outliers)
+Create a box plot with optional outlier highlighting.
+- Shows quartiles, median, and whiskers
+- Highlights outliers in red
+- Customizable figure size and title
+
+```python
+from outlier_cleaner import plot_boxplot
+plot_boxplot(data=df['column'], outliers=outlier_mask)
+```
+
+#### plot_qq(data, outliers)
+Create a Q-Q plot to assess normality of the data distribution.
+- Compares data quantiles against theoretical normal distribution
+- Highlights outliers in red
+- Helps identify deviations from normality
+
+```python
+from outlier_cleaner import plot_qq
+plot_qq(data=df['column'], outliers=outlier_mask)
+```
+
+#### plot_outlier_analysis(data, outliers)
+Generate a comprehensive 2x2 dashboard combining all plots.
+- Scatter plot with outliers (top-left)
+- Distribution plot (top-right)
+- Box plot (bottom-left)
+- Q-Q plot (bottom-right)
+- Automatic layout adjustment
+
+```python
+from outlier_cleaner import plot_outlier_analysis
+plot_outlier_analysis(data=df['column'], outliers=outlier_mask)
+```
+
 ### Integrated Analysis Plots
 
 #### plot_outlier_analysis(columns=None)
@@ -197,6 +234,18 @@ Get comprehensive outlier statistics without removing data points.
 - tqdm>=4.62.0
 
 ## Changelog
+
+### Version 1.0.6
+- Added new standalone visualization functions:
+  - plot_boxplot: Box plot with outlier highlighting
+  - plot_qq: Q-Q plot for normality assessment
+  - plot_outlier_analysis: Comprehensive 2x2 dashboard
+- Enhanced visualization features:
+  - Improved outlier highlighting in all plots
+  - Added grid lines for better readability
+  - Automatic layout adjustment in dashboard view
+- Updated documentation with new visualization examples
+- Improved type hints and error handling
 
 ### Version 1.0.5
 - Fixed boxplot visualization in plot_outlier_analysis
