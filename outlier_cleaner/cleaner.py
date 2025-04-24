@@ -161,12 +161,15 @@ class OutlierCleaner:
         upper_bound = Q3 + (upper_factor * IQR)
         
         # Identify outliers
-        outliers = self.clean_df[(self.clean_df[column] < lower_bound) | 
-                                (self.clean_df[column] > upper_bound)]
+        outlier_mask = (self.clean_df[column] < lower_bound) | (self.clean_df[column] > upper_bound)
+        outliers = self.clean_df[outlier_mask]
         
         # Create a clean DataFrame without outliers
-        self.clean_df = self.clean_df[(self.clean_df[column] >= lower_bound) & 
-                                     (self.clean_df[column] <= upper_bound)]
+        self.clean_df = self.clean_df[~outlier_mask].copy()
+        
+        # Reset index if not preserving
+        if not self.preserve_index:
+            self.clean_df.reset_index(drop=True, inplace=True)
         
         # Prepare outlier information
         outlier_info = {
@@ -180,7 +183,8 @@ class OutlierCleaner:
             'num_outliers': len(outliers),
             'num_outliers_below': len(self.original_df[self.original_df[column] < lower_bound]),
             'num_outliers_above': len(self.original_df[self.original_df[column] > upper_bound]),
-            'percent_removed': (len(outliers) / len(self.original_df)) * 100
+            'percent_removed': (len(outliers) / len(self.original_df)) * 100,
+            'outlier_indices': outliers.index.tolist()
         }
         
         # Store outlier information
@@ -228,6 +232,10 @@ class OutlierCleaner:
         # Create a clean DataFrame without outliers
         self.clean_df = self.clean_df[~outlier_mask].copy()
         
+        # Reset index if not preserving
+        if not self.preserve_index:
+            self.clean_df.reset_index(drop=True, inplace=True)
+        
         # Prepare outlier information
         outlier_info = {
             'method': 'Z-score',
@@ -236,7 +244,8 @@ class OutlierCleaner:
             'std': self.original_df[column].std(),
             'threshold': threshold,
             'num_outliers': len(outliers),
-            'percent_removed': (len(outliers) / len(self.original_df)) * 100
+            'percent_removed': (len(outliers) / len(self.original_df)) * 100,
+            'outlier_indices': outliers.index.tolist()
         }
         
         # Store outlier information
@@ -244,7 +253,7 @@ class OutlierCleaner:
         
         return self.clean_df, outlier_info
     
-    def get_outlier_stats(self, columns=None, methods=['iqr', 'zscore'], iqr_factor=1.5, zscore_threshold=3.0):
+    def get_outlier_stats(self, columns=None, methods=['iqr', 'zscore'], iqr_factor=1.5, zscore_threshold=3.0, include_indices=False):
         """
         Get comprehensive statistics about potential outliers without removing them.
         
@@ -258,11 +267,13 @@ class OutlierCleaner:
             The factor to multiply the IQR by for the IQR method
         zscore_threshold : float, default=3.0
             The Z-score threshold for the Z-score method
+        include_indices : bool, default=False
+            Whether to include outlier indices in the output
             
         Returns:
         --------
-        dict
-            A dictionary containing outlier statistics for each column and method
+        pandas.DataFrame
+            A DataFrame containing outlier statistics for each column and method
         """
         if self.clean_df is None or len(self.clean_df.columns) == 0:
             raise ValueError("No DataFrame has been set or DataFrame is empty. Use set_data() first.")
@@ -271,59 +282,74 @@ class OutlierCleaner:
         if columns is None:
             columns = self.clean_df.select_dtypes(include=np.number).columns.tolist()
             
-        stats = {}
+        stats_data = []
         
         for column in columns:
             if not np.issubdtype(self.clean_df[column].dtype, np.number):
                 print(f"Warning: Column '{column}' is not numeric. Skipping.")
                 continue
                 
-            stats[column] = {}
-            
-            if 'iqr' in methods:
-                # Calculate IQR statistics
-                Q1 = self.clean_df[column].quantile(0.25)
-                Q3 = self.clean_df[column].quantile(0.75)
-                IQR = Q3 - Q1
-                lower_bound = Q1 - (iqr_factor * IQR)
-                upper_bound = Q3 + (iqr_factor * IQR)
+            for method in methods:
+                if method == 'iqr':
+                    # Calculate IQR statistics
+                    Q1 = self.clean_df[column].quantile(0.25)
+                    Q3 = self.clean_df[column].quantile(0.75)
+                    IQR = Q3 - Q1
+                    lower_bound = Q1 - (iqr_factor * IQR)
+                    upper_bound = Q3 + (iqr_factor * IQR)
+                    
+                    outlier_mask = (self.clean_df[column] < lower_bound) | (self.clean_df[column] > upper_bound)
+                    outlier_indices = self.clean_df[outlier_mask].index.tolist() if include_indices else None
+                    
+                    stats_data.append({
+                        'Column': column,
+                        'Method': 'IQR',
+                        'Potential Outliers': outlier_mask.sum(),
+                        'Percent Outliers': (outlier_mask.sum() / len(self.clean_df)) * 100,
+                        'Lower Bound': lower_bound,
+                        'Upper Bound': upper_bound,
+                        'Q1': Q1,
+                        'Q3': Q3,
+                        'IQR': IQR,
+                        'Outlier Indices': outlier_indices if include_indices else None
+                    })
                 
-                outlier_mask = (self.clean_df[column] < lower_bound) | (self.clean_df[column] > upper_bound)
-                outlier_indices = self.clean_df[outlier_mask].index.tolist()
-                
-                stats[column]['iqr'] = {
-                    'potential_outliers': len(outlier_indices),
-                    'percent_outliers': (len(outlier_indices) / len(self.clean_df)) * 100,
-                    'bounds': (lower_bound, upper_bound),
-                    'outlier_indices': outlier_indices,
-                    'Q1': Q1,
-                    'Q3': Q3,
-                    'IQR': IQR
-                }
-            
-            if 'zscore' in methods:
-                # Calculate Z-score statistics
-                zscore_col = f"{column}_zscore"
-                if zscore_col in self.clean_df.columns:
-                    z_scores = np.abs(self.clean_df[zscore_col])
-                else:
-                    mean = self.clean_df[column].mean()
-                    std = self.clean_df[column].std()
-                    z_scores = np.abs((self.clean_df[column] - mean) / std)
-                
-                outlier_mask = z_scores > zscore_threshold
-                outlier_indices = self.clean_df[outlier_mask].index.tolist()
-                
-                stats[column]['zscore'] = {
-                    'potential_outliers': len(outlier_indices),
-                    'percent_outliers': (len(outlier_indices) / len(self.clean_df)) * 100,
-                    'threshold': zscore_threshold,
-                    'outlier_indices': outlier_indices,
-                    'mean': self.clean_df[column].mean(),
-                    'std': self.clean_df[column].std()
-                }
+                elif method == 'zscore':
+                    # Calculate Z-score statistics
+                    zscore_col = f"{column}_zscore"
+                    if zscore_col in self.clean_df.columns:
+                        z_scores = np.abs(self.clean_df[zscore_col])
+                    else:
+                        mean = self.clean_df[column].mean()
+                        std = self.clean_df[column].std()
+                        z_scores = np.abs((self.clean_df[column] - mean) / std)
+                    
+                    outlier_mask = z_scores > zscore_threshold
+                    outlier_indices = self.clean_df[outlier_mask].index.tolist() if include_indices else None
+                    
+                    stats_data.append({
+                        'Column': column,
+                        'Method': 'Z-score',
+                        'Potential Outliers': outlier_mask.sum(),
+                        'Percent Outliers': (outlier_mask.sum() / len(self.clean_df)) * 100,
+                        'Threshold': zscore_threshold,
+                        'Mean': self.clean_df[column].mean(),
+                        'Std': self.clean_df[column].std(),
+                        'Outlier Indices': outlier_indices if include_indices else None
+                    })
         
-        return stats
+        # Convert to DataFrame
+        stats_df = pd.DataFrame(stats_data)
+        
+        # Format percentage with 2 decimal places
+        if 'Percent Outliers' in stats_df.columns:
+            stats_df['Percent Outliers'] = stats_df['Percent Outliers'].round(2)
+        
+        # Drop the Outlier Indices column if not requested
+        if not include_indices and 'Outlier Indices' in stats_df.columns:
+            stats_df = stats_df.drop('Outlier Indices', axis=1)
+        
+        return stats_df
         
     def plot_outlier_analysis(self, columns=None, methods=['iqr', 'zscore'], figsize=(15, 5)):
         """
@@ -435,9 +461,25 @@ class OutlierCleaner:
             outliers_by_method = {}
             
             # Get outlier indices for each method
-            for method in methods:
-                if method in stats[column]:
-                    outliers_by_method[method] = set(stats[column][method]['outlier_indices'])
+            if 'iqr' in methods:
+                Q1 = stats[column]['iqr']['Q1']
+                Q3 = stats[column]['iqr']['Q3']
+                IQR = stats[column]['iqr']['IQR']
+                lower_bound = Q1 - (iqr_factor * IQR)
+                upper_bound = Q3 + (iqr_factor * IQR)
+                outlier_mask = (self.clean_df[column] < lower_bound) | (self.clean_df[column] > upper_bound)
+                outliers_by_method['iqr'] = set(self.clean_df[outlier_mask].index.tolist())
+            
+            if 'zscore' in methods:
+                zscore_col = f"{column}_zscore"
+                if zscore_col in self.clean_df.columns:
+                    z_scores = np.abs(self.clean_df[zscore_col])
+                else:
+                    mean = stats[column]['zscore']['mean']
+                    std = stats[column]['zscore']['std']
+                    z_scores = np.abs((self.clean_df[column] - mean) / std)
+                outlier_mask = z_scores > zscore_threshold
+                outliers_by_method['zscore'] = set(self.clean_df[outlier_mask].index.tolist())
             
             # Find common outliers across all methods
             if len(methods) > 1:
@@ -602,7 +644,7 @@ class OutlierCleaner:
         
         return self.clean_df, outlier_info
         
-    def clean_columns(self, columns=None, method='auto', show_progress=True, **kwargs):
+    def clean_columns(self, columns=None, method='auto', show_progress=True, include_indices=False, **kwargs):
         """
         Clean multiple columns using the most appropriate method for each column.
         
@@ -618,6 +660,8 @@ class OutlierCleaner:
             - 'modified_zscore': Use Modified Z-score method
         show_progress : bool, default=True
             Whether to show a progress bar during cleaning
+        include_indices : bool, default=False
+            Whether to include outlier indices in the output DataFrame
         **kwargs:
             Additional arguments to pass to the cleaning methods:
             - threshold: for Z-score methods
@@ -625,10 +669,9 @@ class OutlierCleaner:
             
         Returns:
         --------
-        pandas.DataFrame
-            A DataFrame with outliers removed from specified columns
-        dict
-            Information about outliers removed from each column
+        tuple
+            - pandas.DataFrame: The cleaned DataFrame
+            - pandas.DataFrame: Summary of outlier statistics for each column
         """
         if self.clean_df is None:
             raise ValueError("No DataFrame has been set. Use set_data() first.")
@@ -641,6 +684,8 @@ class OutlierCleaner:
         if show_progress:
             columns = tqdm(columns, desc="Cleaning columns")
             
+        cleaning_results = []
+        
         for column in columns:
             if method == 'auto':
                 # Analyze distribution and get recommended method
@@ -665,8 +710,66 @@ class OutlierCleaner:
                     self.remove_outliers_modified_zscore(column, **kwargs)
                 else:
                     raise ValueError(f"Unknown method: {method}")
-                    
-        return self.clean_df, self.outlier_info
+            
+            # Get the outlier info for this column
+            info = self.outlier_info[column]
+            
+            # Create a summary row
+            summary = {
+                'Column': column,
+                'Method': info['method'],
+                'Outliers Found': info['num_outliers'],
+                'Percent Removed': round(info['percent_removed'], 2)
+            }
+            
+            # Add method-specific statistics
+            if info['method'] == 'IQR':
+                summary.update({
+                    'Lower Bound': info['lower_bound'],
+                    'Upper Bound': info['upper_bound'],
+                    'Q1': info['Q1'],
+                    'Q3': info['Q3'],
+                    'IQR': info['IQR'],
+                    'Below Lower': info.get('num_outliers_below', '-'),
+                    'Above Upper': info.get('num_outliers_above', '-')
+                })
+            elif info['method'] in ['Z-score', 'Modified Z-score']:
+                if info['method'] == 'Z-score':
+                    summary.update({
+                        'Mean': info['mean'],
+                        'Std': info['std'],
+                        'Threshold': info['threshold']
+                    })
+                else:
+                    summary.update({
+                        'Median': info['median'],
+                        'MAD': info['mad'],
+                        'Threshold': info['threshold']
+                    })
+            
+            # Add outlier indices if requested
+            if include_indices:
+                summary['Outlier Indices'] = info.get('outlier_indices', [])
+                
+            cleaning_results.append(summary)
+        
+        # Convert results to DataFrame
+        results_df = pd.DataFrame(cleaning_results)
+        
+        # Reorder columns for better presentation
+        column_order = ['Column', 'Method', 'Outliers Found', 'Percent Removed']
+        if 'Lower Bound' in results_df.columns:
+            column_order.extend(['Lower Bound', 'Upper Bound', 'Q1', 'Q3', 'IQR', 'Below Lower', 'Above Upper'])
+        if 'Mean' in results_df.columns:
+            column_order.extend(['Mean', 'Std', 'Threshold'])
+        if 'Median' in results_df.columns:
+            column_order.extend(['Median', 'MAD', 'Threshold'])
+        if include_indices and 'Outlier Indices' in results_df.columns:
+            column_order.append('Outlier Indices')
+            
+        results_df = results_df[column_order]
+        
+        return self.clean_df, results_df
     
     def visualize_outliers(self, column):
         """

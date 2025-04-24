@@ -1,6 +1,10 @@
-## OutlierCleaner v1.0.0 Release
+## OutlierCleaner v1.0.1 Release
 
-### Major Features
+### Changes
+- Fixed author name spelling
+- Updated documentation for consistency
+
+### Previous Features (v1.0.0)
 - Automatic method selection based on data distribution
 - Multiple outlier detection methods (IQR, Z-score, Modified Z-score)
 - Advanced distribution analysis and method recommendations

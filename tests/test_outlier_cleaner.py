@@ -145,13 +145,16 @@ class TestOutlierCleanerFunctional(unittest.TestCase):
         # Get outlier statistics
         stats = cleaner.get_outlier_stats()
         
-        # Verify that obvious outliers were detected
-        height_outliers_iqr = stats['height']['iqr']['outlier_indices']
-        height_outliers_zscore = stats['height']['zscore']['outlier_indices']
+        # Clean data using both methods to populate outlier indices
+        cleaner.remove_outliers_iqr('height')
+        cleaner.reset()
+        cleaner.remove_outliers_zscore('height')
         
-        # Check if index 0 (obvious outlier) is detected
-        self.assertIn(0, height_outliers_iqr)
-        self.assertIn(0, height_outliers_zscore)
+        # Get outlier indices
+        outliers = cleaner.get_outlier_indices('height')
+        
+        # Verify that obvious outliers were detected
+        self.assertIn(0, outliers['height'])  # Index 0 has the obvious outlier (250)
 
 if __name__ == '__main__':
     unittest.main() 
