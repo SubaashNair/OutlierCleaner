@@ -235,6 +235,13 @@ Get comprehensive outlier statistics without removing data points.
 
 ## Changelog
 
+### Version 1.0.8 (2024-03-24)
+- Improved outlier_analysis method with enhanced visualization capabilities
+- Added robust error handling for missing columns and non-numeric data
+- Optimized plot layout and styling for better readability
+- Fixed memory management in visualization functions
+- Added comprehensive test suite for visualization features
+
 ### Version 1.0.7 (2024-03-24)
 - Enhanced visualization tools with improved plot customization
 - Added comprehensive docstrings to all visualization functions
