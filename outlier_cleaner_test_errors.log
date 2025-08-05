@@ -1,0 +1,5 @@
+OutlierCleaner Test Error Log
+==================================================
+
+FAIL: compare_methods - 'iqr'
+FAIL: visualize_outliers - No figure returned

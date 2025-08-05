@@ -469,33 +469,40 @@ class OutlierCleaner:
             raise ValueError("No DataFrame has been set. Use set_data() first.")
             
         # Get outlier statistics
-        stats = self.get_outlier_stats(columns, methods, iqr_factor, zscore_threshold)
+        stats_df = self.get_outlier_stats(columns, methods, iqr_factor, zscore_threshold)
         comparison = {}
         
-        for column in stats:
+        # Get unique columns from the stats DataFrame
+        unique_columns = stats_df['Column'].unique()
+        
+        for column in unique_columns:
             comparison[column] = {}
             outliers_by_method = {}
             
             # Get outlier indices for each method
             if 'iqr' in methods:
-                Q1 = stats[column]['iqr']['Q1']
-                Q3 = stats[column]['iqr']['Q3']
-                IQR = stats[column]['iqr']['IQR']
-                lower_bound = Q1 - (iqr_factor * IQR)
-                upper_bound = Q3 + (iqr_factor * IQR)
-                outlier_mask = (self.clean_df[column] < lower_bound) | (self.clean_df[column] > upper_bound)
-                outliers_by_method['iqr'] = set(self.clean_df[outlier_mask].index.tolist())
+                iqr_row = stats_df[(stats_df['Column'] == column) & (stats_df['Method'] == 'IQR')]
+                if not iqr_row.empty:
+                    Q1 = iqr_row['Q1'].iloc[0]
+                    Q3 = iqr_row['Q3'].iloc[0]
+                    IQR = iqr_row['IQR'].iloc[0]
+                    lower_bound = Q1 - (iqr_factor * IQR)
+                    upper_bound = Q3 + (iqr_factor * IQR)
+                    outlier_mask = (self.clean_df[column] < lower_bound) | (self.clean_df[column] > upper_bound)
+                    outliers_by_method['iqr'] = set(self.clean_df[outlier_mask].index.tolist())
             
             if 'zscore' in methods:
-                zscore_col = f"{column}_zscore"
-                if zscore_col in self.clean_df.columns:
-                    z_scores = np.abs(self.clean_df[zscore_col])
-                else:
-                    mean = stats[column]['zscore']['mean']
-                    std = stats[column]['zscore']['std']
-                    z_scores = np.abs((self.clean_df[column] - mean) / std)
-                outlier_mask = z_scores > zscore_threshold
-                outliers_by_method['zscore'] = set(self.clean_df[outlier_mask].index.tolist())
+                zscore_row = stats_df[(stats_df['Column'] == column) & (stats_df['Method'] == 'Z-score')]
+                if not zscore_row.empty:
+                    zscore_col = f"{column}_zscore"
+                    if zscore_col in self.clean_df.columns:
+                        z_scores = np.abs(self.clean_df[zscore_col])
+                    else:
+                        mean = zscore_row['Mean'].iloc[0]
+                        std = zscore_row['Std'].iloc[0]
+                        z_scores = np.abs((self.clean_df[column] - mean) / std)
+                    outlier_mask = z_scores > zscore_threshold
+                    outliers_by_method['zscore'] = set(self.clean_df[outlier_mask].index.tolist())
             
             # Find common outliers across all methods
             if len(methods) > 1:

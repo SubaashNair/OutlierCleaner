@@ -236,6 +236,19 @@ Get comprehensive outlier statistics without removing data points.
 
 ## Changelog
 
+### Version 1.1.1 (2025-08-05)
+- **Comprehensive Type Hints**: Added complete type annotations to all methods and functions
+  - Enhanced IDE support with better autocomplete and error detection
+  - Improved code documentation through type annotations
+  - MyPy compatibility for static type checking
+  - Better developer experience and code maintainability
+- Updated dependency management with complete requirements specification
+- Enhanced null safety with proper error handling
+- Improved code quality and professional standards
+- Full backward compatibility maintained
+- Updated requirements.txt with scipy and tqdm dependencies
+- Synchronized dependency versions across setup.py and requirements.txt
+
 ### Version 1.0.8 (2024-03-24)
 - Improved outlier_analysis method with enhanced visualization capabilities
 - Added robust error handling for missing columns and non-numeric data

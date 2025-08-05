@@ -9,6 +9,6 @@ __version__ = '1.1.0'
 __author__ = 'Subashanan Nair'
 
 from .cleaner import OutlierCleaner
-from .utils import plot_outliers, plot_distribution
+from .utils import plot_outliers, plot_distribution, plot_boxplot, plot_qq, plot_outlier_analysis
 
-__all__ = ['OutlierCleaner', 'plot_outliers', 'plot_distribution']
+__all__ = ['OutlierCleaner', 'plot_outliers', 'plot_distribution', 'plot_boxplot', 'plot_qq', 'plot_outlier_analysis']
