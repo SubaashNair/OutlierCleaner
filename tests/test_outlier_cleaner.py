@@ -2,10 +2,14 @@ import os
 import sys
 import unittest
 import numpy as np
-import pandas as pd
 
 # Add the parent directory to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+try:
+    import pandas as pd
+except ImportError:
+    raise ImportError("pandas is required for testing. Install with: pip install pandas")
 
 from outlier_cleaner import OutlierCleaner
 
@@ -91,13 +95,29 @@ class TestOutlierCleaner(unittest.TestCase):
             methods=['iqr', 'zscore']
         )
         
-        # Check structure and content
-        self.assertIn('height', stats)
-        self.assertIn('weight', stats)
-        self.assertIn('iqr', stats['height'])
-        self.assertIn('zscore', stats['height'])
-        self.assertGreater(stats['height']['zscore']['potential_outliers'], 0)
-        self.assertGreater(stats['height']['iqr']['potential_outliers'], 0)
+        # Check that stats is a DataFrame
+        self.assertIsInstance(stats, pd.DataFrame)
+        
+        # Check that required columns exist
+        expected_columns = ['Column', 'Method', 'Potential Outliers', 'Percent Outliers']
+        for col in expected_columns:
+            self.assertIn(col, stats.columns)
+        
+        # Check that both columns and methods are represented
+        columns_in_stats = stats['Column'].unique()
+        methods_in_stats = stats['Method'].unique()
+        
+        self.assertIn('height', columns_in_stats)
+        self.assertIn('weight', columns_in_stats)
+        self.assertIn('IQR', methods_in_stats)
+        self.assertIn('Z-score', methods_in_stats)
+        
+        # Check that outliers were detected
+        height_iqr_row = stats[(stats['Column'] == 'height') & (stats['Method'] == 'IQR')]
+        height_zscore_row = stats[(stats['Column'] == 'height') & (stats['Method'] == 'Z-score')]
+        
+        self.assertGreater(height_iqr_row['Potential Outliers'].iloc[0], 0)
+        self.assertGreater(height_zscore_row['Potential Outliers'].iloc[0], 0)
 
     def test_edge_cases(self):
         """Test edge cases and error handling"""
@@ -157,4 +177,4 @@ class TestOutlierCleanerFunctional(unittest.TestCase):
         self.assertIn(0, outliers['height'])  # Index 0 has the obvious outlier (250)
 
 if __name__ == '__main__':
-    unittest.main() 
+    unittest.main()

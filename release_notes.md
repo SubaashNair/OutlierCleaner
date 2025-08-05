@@ -1,4 +1,28 @@
-## OutlierCleaner v1.0.1 Release
+## OutlierCleaner v1.1.0 Release
+
+### New Features
+- **Comprehensive Type Hints**: Added complete type annotations to all methods and functions
+  - Enhanced IDE support with better autocomplete and error detection
+  - Improved code documentation through type annotations
+  - MyPy compatibility for static type checking
+  - Better developer experience and code maintainability
+
+### Improvements
+- Updated dependency management with complete requirements specification
+- Enhanced null safety with proper error handling
+- Improved code quality and professional standards
+- Full backward compatibility maintained
+
+### Dependencies
+- Updated requirements.txt with scipy and tqdm dependencies
+- Synchronized dependency versions across setup.py and requirements.txt
+
+### Breaking Changes
+None - All existing functionality is preserved with full backward compatibility.
+
+---
+
+## OutlierCleaner v1.0.1 Release (Previous)
 
 ### Changes
 - Fixed author name spelling
@@ -33,4 +57,4 @@ The README now includes a complete example using the California Housing dataset,
 - Progress tracking
 - Index preservation
 - Outlier tracking
-- Visualization tools 
+- Visualization tools

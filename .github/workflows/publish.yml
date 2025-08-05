@@ -30,18 +30,22 @@ jobs:
         body: |
           ## What's New in ${{ github.ref_name }}
 
-          ### Changes
-          - Fixed author name spelling to "Subashanan Nair"
-          - Updated version number
-          - Improved release workflow configuration
+          ### New Features
+          - **Comprehensive Type Hints**: Added complete type annotations to all methods and functions
+            - Enhanced IDE support with better autocomplete and error detection
+            - Improved code documentation through type annotations
+            - MyPy compatibility for static type checking
+            - Better developer experience and code maintainability
 
-          ### Previous Updates
-          - Enhanced outlier indices tracking in all removal methods
-          - Improved `get_outlier_indices()` to handle missing columns gracefully
-          - Optimized outlier statistics calculation
-          - Removed redundant outlier indices from `get_outlier_stats()` output
-          - Added detailed changelog section to README
-          - Improved method descriptions and documentation
+          ### Improvements
+          - Updated dependency management with complete requirements specification
+          - Enhanced null safety with proper error handling
+          - Improved code quality and professional standards
+          - Full backward compatibility maintained
+
+          ### Dependencies
+          - Updated requirements.txt with scipy and tqdm dependencies
+          - Synchronized dependency versions across setup.py and requirements.txt
 
           ## Installation
           ```bash
@@ -53,4 +57,4 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
         python -m build
-        twine upload dist/* 
+        twine upload dist/*

@@ -4,6 +4,7 @@ A Python package for detecting and removing outliers in data using various stati
 
 ## Features
 
+- **Type Safety**: Comprehensive type hints for enhanced IDE support and code reliability
 - Automatic method selection based on data distribution
 - Multiple outlier detection methods:
   - IQR (Interquartile Range)
@@ -301,4 +302,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-MIT License 
+MIT License

@@ -5,6 +5,7 @@ This module provides functions for identifying and removing outliers
 using various statistical methods such as IQR and Z-score.
 """
 
+from typing import Optional, List, Dict, Tuple, Union, Any
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -22,7 +23,7 @@ class OutlierCleaner:
     cleaning process.
     """
     
-    def __init__(self, df=None, preserve_index=True):
+    def __init__(self, df: Optional[pd.DataFrame] = None, preserve_index: bool = True) -> None:
         """
         Initialize the OutlierCleaner with an optional DataFrame.
         
@@ -33,12 +34,12 @@ class OutlierCleaner:
         preserve_index : bool, default=True
             Whether to preserve the original index after cleaning
         """
-        self.original_df = df.copy() if df is not None else None
-        self.clean_df = df.copy() if df is not None else None
-        self.outlier_info = {}
-        self.preserve_index = preserve_index
+        self.original_df: Optional[pd.DataFrame] = df.copy() if df is not None else None
+        self.clean_df: Optional[pd.DataFrame] = df.copy() if df is not None else None
+        self.outlier_info: Dict[str, Dict[str, Any]] = {}
+        self.preserve_index: bool = preserve_index
         
-    def set_data(self, df, preserve_index=None):
+    def set_data(self, df: pd.DataFrame, preserve_index: Optional[bool] = None) -> None:
         """
         Set or update the DataFrame to be cleaned.
         
@@ -56,7 +57,7 @@ class OutlierCleaner:
         if preserve_index is not None:
             self.preserve_index = preserve_index
         
-    def add_zscore_columns(self, columns=None):
+    def add_zscore_columns(self, columns: Optional[List[str]] = None) -> pd.DataFrame:
         """
         Add Z-score columns to the DataFrame for specified columns.
         The new columns will have '_zscore' appended to the original column names.
@@ -94,7 +95,7 @@ class OutlierCleaner:
         
         return self.clean_df
         
-    def clean_zscore_columns(self, threshold=3.0):
+    def clean_zscore_columns(self, threshold: float = 3.0) -> Tuple[pd.DataFrame, Dict[str, Dict[str, Any]]]:
         """
         Clean all columns that have associated Z-score columns.
         This method will remove outliers from all columns that have '_zscore' columns.
@@ -128,7 +129,7 @@ class OutlierCleaner:
         
         return self.clean_df, self.outlier_info
         
-    def remove_outliers_iqr(self, column, lower_factor=1.5, upper_factor=1.5):
+    def remove_outliers_iqr(self, column: str, lower_factor: float = 1.5, upper_factor: float = 1.5) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """
         Remove outliers from a DataFrame column using the IQR method.
         
@@ -172,6 +173,9 @@ class OutlierCleaner:
             self.clean_df.reset_index(drop=True, inplace=True)
         
         # Prepare outlier information
+        if self.original_df is None:
+            raise ValueError("Original DataFrame is None")
+            
         outlier_info = {
             'method': 'IQR',
             'column': column,
@@ -192,7 +196,7 @@ class OutlierCleaner:
         
         return self.clean_df, outlier_info
     
-    def remove_outliers_zscore(self, column, threshold=3.0):
+    def remove_outliers_zscore(self, column: str, threshold: float = 3.0) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """
         Remove outliers from a DataFrame column using the Z-score method.
         If a Z-score column exists (column_zscore), it will use that instead of recalculating.
@@ -237,6 +241,9 @@ class OutlierCleaner:
             self.clean_df.reset_index(drop=True, inplace=True)
         
         # Prepare outlier information
+        if self.original_df is None:
+            raise ValueError("Original DataFrame is None")
+            
         outlier_info = {
             'method': 'Z-score',
             'column': column,
@@ -253,7 +260,7 @@ class OutlierCleaner:
         
         return self.clean_df, outlier_info
     
-    def get_outlier_stats(self, columns=None, methods=['iqr', 'zscore'], iqr_factor=1.5, zscore_threshold=3.0, include_indices=False):
+    def get_outlier_stats(self, columns: Optional[List[str]] = None, methods: List[str] = ['iqr', 'zscore'], iqr_factor: float = 1.5, zscore_threshold: float = 3.0, include_indices: bool = False) -> pd.DataFrame:
         """
         Get comprehensive statistics about potential outliers without removing them.
         
@@ -351,7 +358,7 @@ class OutlierCleaner:
         
         return stats_df
         
-    def plot_outlier_analysis(self, columns=None, methods=None, figsize=(15, 5)):
+    def plot_outlier_analysis(self, columns: Optional[Union[str, List[str]]] = None, methods: Optional[List[str]] = None, figsize: Tuple[int, int] = (15, 5)) -> Dict[str, Any]:
         """
         Generate comprehensive outlier analysis plots for specified columns.
         
@@ -531,7 +538,7 @@ class OutlierCleaner:
         
         return comparison
         
-    def analyze_distribution(self, column):
+    def analyze_distribution(self, column: str) -> Dict[str, Any]:
         """
         Analyze the distribution of a column and recommend the best outlier detection method.
         
@@ -567,6 +574,7 @@ class OutlierCleaner:
         mad = stats.median_abs_deviation(data)
         
         # Make recommendations
+        recommended_threshold: Union[Dict[str, float], float]
         if abs(skewness) > 2 or abs(kurtosis) > 7:
             recommended_method = 'iqr'
             iqr = data.quantile(0.75) - data.quantile(0.25)
@@ -592,7 +600,7 @@ class OutlierCleaner:
             'recommended_threshold': recommended_threshold
         }
         
-    def remove_outliers_modified_zscore(self, column, threshold=3.5):
+    def remove_outliers_modified_zscore(self, column: str, threshold: float = 3.5) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """
         Remove outliers using Modified Z-score method, which is more robust for skewed data.
         Uses Median Absolute Deviation (MAD) instead of standard deviation.
@@ -637,6 +645,9 @@ class OutlierCleaner:
             self.clean_df.reset_index(drop=True, inplace=True)
         
         # Prepare outlier information
+        if self.original_df is None:
+            raise ValueError("Original DataFrame is None")
+            
         outlier_info = {
             'method': 'Modified Z-score',
             'column': column,
@@ -653,7 +664,7 @@ class OutlierCleaner:
         
         return self.clean_df, outlier_info
         
-    def clean_columns(self, columns=None, method='auto', show_progress=True, include_indices=False, **kwargs):
+    def clean_columns(self, columns: Optional[List[str]] = None, method: str = 'auto', show_progress: bool = True, include_indices: bool = False, **kwargs: Any) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Clean multiple columns using the most appropriate method for each column.
         
@@ -690,12 +701,11 @@ class OutlierCleaner:
             columns = self.clean_df.select_dtypes(include=np.number).columns.tolist()
             
         # Create progress bar if requested
-        if show_progress:
-            columns = tqdm(columns, desc="Cleaning columns")
+        columns_to_iterate = tqdm(columns, desc="Cleaning columns") if show_progress else columns
             
         cleaning_results = []
         
-        for column in columns:
+        for column in columns_to_iterate:
             if method == 'auto':
                 # Analyze distribution and get recommended method
                 analysis = self.analyze_distribution(column)
@@ -780,7 +790,7 @@ class OutlierCleaner:
         
         return self.clean_df, results_df
     
-    def visualize_outliers(self, column):
+    def visualize_outliers(self, column: str) -> None:
         """
         Visualize the distribution of data and highlight outliers.
         
@@ -833,7 +843,7 @@ class OutlierCleaner:
         
         self._print_outlier_summary(column)
     
-    def _print_outlier_summary(self, column):
+    def _print_outlier_summary(self, column: str) -> None:
         """
         Print a summary of outliers for a specific column.
         
@@ -854,7 +864,7 @@ class OutlierCleaner:
             print(f"- Outliers below lower bound: {outlier_info['num_outliers_below']}")
             print(f"- Outliers above upper bound: {outlier_info['num_outliers_above']}")
     
-    def get_summary_report(self):
+    def get_summary_report(self) -> Dict[str, Any]:
         """
         Generate a summary report of all outlier removal operations.
         
@@ -865,6 +875,9 @@ class OutlierCleaner:
         """
         if not self.outlier_info:
             return {"status": "No outlier removal operations performed yet"}
+            
+        if self.original_df is None or self.clean_df is None:
+            raise ValueError("DataFrames are None")
             
         total_rows_before = len(self.original_df)
         total_rows_after = len(self.clean_df)
@@ -881,7 +894,7 @@ class OutlierCleaner:
         
         return summary
     
-    def reset(self):
+    def reset(self) -> None:
         """
         Reset the cleaner to the original DataFrame.
         """
@@ -889,7 +902,7 @@ class OutlierCleaner:
             self.clean_df = self.original_df.copy()
             self.outlier_info = {}
 
-    def get_outlier_indices(self, column=None):
+    def get_outlier_indices(self, column: Optional[str] = None) -> Dict[str, List[int]]:
         """
         Get the indices of outliers for specified column(s).
         
