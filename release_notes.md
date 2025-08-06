@@ -1,4 +1,4 @@
-## OutlierCleaner v1.1.1 Release (2025-08-05)
+## OutlierCleaner v1.1.2 Release (2025-08-05)
 
 ### New Features
 - **Comprehensive Type Hints**: Added complete type annotations to all methods and functions
