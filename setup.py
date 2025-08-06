@@ -4,7 +4,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="outlier_cleaner",
-    version="1.1.2",
+    version="1.1.4",
     author="Subashanan Nair",
     author_email="subaashnair12@gmail.com",
     description="A Python package for detecting and removing outliers in data using various statistical methods and advanced distribution analysis",

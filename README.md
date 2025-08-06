@@ -236,7 +236,7 @@ Get comprehensive outlier statistics without removing data points.
 
 ## Changelog
 
-### Version 1.1.3 (2025-08-06)
+### Version 1.1.4 (2025-08-06)
 - **Comprehensive Type Hints**: Added complete type annotations to all methods and functions
   - Enhanced IDE support with better autocomplete and error detection
   - Improved code documentation through type annotations
