@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
@@ -7,11 +6,17 @@ setup(
     name="outlier_cleaner",
     version="1.1.2",
     author="Subashanan Nair",
-    author_email="subaashnair12@gmail.com",  # Replace with your email
+    author_email="subaashnair12@gmail.com",
     description="A Python package for detecting and removing outliers in data using various statistical methods and advanced distribution analysis",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/SubaashNair/OutlierCleaner",  # Updated with correct URL
+    url="https://github.com/SubaashNair/OutlierCleaner",
+    project_urls={  # <--- ADD THIS SECTION!
+        "Homepage": "https://github.com/SubaashNair/OutlierCleaner",
+        "Source": "https://github.com/SubaashNair/OutlierCleaner",
+        "Tracker": "https://github.com/SubaashNair/OutlierCleaner/issues",
+        "Documentation": "https://github.com/SubaashNair/OutlierCleaner#readme",
+    },
     packages=find_packages(),
     classifiers=[
         "Development Status :: 5 - Production/Stable",
